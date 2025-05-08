@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quranic Pronunciation Assessment</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Traditional Arabic', Arial, sans-serif;
+            background-color: #f8f9fa;
+        }
+        .arabic-text {
+            font-family: 'Traditional Arabic', 'Amiri', 'Scheherazade', serif;
+            font-size: 1.8rem;
+            line-height: 2.5rem;
+            text-align: center;
+        }
+        .card {
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .header {
+            background-color: #075e54;
+            color: white;
+            padding: 20px 0;
+            margin-bottom: 40px;
+        }
+        .result-card {
+            margin-top: 20px;
+            display: none;
+        }
+        .surah-select {
+            margin-bottom: 20px;
+        }
+        .recording-controls {
+            text-align: center;
+            margin: 30px 0;
+        }
+        .btn-record {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background-color: #075e54;
+            color: white;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+            border: none;
+        }
+        .btn-record:hover {
+            background-color: #054d45;
+            transform: scale(1.05);
+        }
+        .recording-indicator {
+            color: red;
+            font-weight: bold;
+            display: none;
+            margin-top: 10px;
+        }
+        .assessment-result {
+            padding: 20px;
+        }
+        .accuracy-meter {
+            height: 20px;
+            margin: 15px 0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .words-table {
+            margin-top: 20px;
+        }
+        .feedback-section {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            background-color: #e9f5f3;
+        }
+        .loading-spinner {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .spinner-border {
+            width: 3rem;
+            height: 3rem;
+        }
+        .surah-text {
+            height: 500px;
+            overflow-y: auto;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            scrollbar-width: thin;
+            scrollbar-color: #075e54 #f9f9f9;
+        }
+
+        .surah-text::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .surah-text::-webkit-scrollbar-track {
+            background: #f9f9f9;
+        }
+
+        .surah-text::-webkit-scrollbar-thumb {
+            background-color: #075e54;
+            border-radius: 4px;
+        }
+
+        .verse {
+            margin-bottom: 1.5rem;
+            text-align: right;
+        }
+
+        .verse-text {
+            margin-right: 10px;
+            line-height: 2.8rem;
+        }
+
+        .verse-number {
+            display: inline-block;
+            min-width: 30px;
+            height: 30px;
+            line-height: 30px;
+            text-align: center;
+            background-color: #075e54;
+            color: white;
+            border-radius: 50%;
+            margin-left: 10px;
+            font-size: 0.9rem;
+            vertical-align: top;
+            float: right;
+        }
+
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            flex-direction: column;
+        }
+
+        .surah-container {
+            position: relative;
+            min-height: 200px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header text-center">
+        <h1>تقييم النطق القرآني</h1>
+        <h3>Quranic Pronunciation Assessment</h3>
+    </div>
+
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header text-center">
+                        <h3>اختر السورة</h3>
+                        <h4>Select Surah</h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="surahSelect" class="form-label">السورة (Surah):</label>
+                            <select id="surahSelect" class="form-select surah-select">
+                                <option value="1">1 - الفاتحة (Al-Fatiha)</option>
+                                <!-- Surahs will be loaded dynamically -->
+                            </select>
+                        </div>
+                        
+                        <div class="card mt-4">
+                            <div class="card-body">
+                                <h5 class="card-title text-center">نص السورة (Surah Text)</h5>
+                                <div id="surahText" class="surah-text arabic-text mt-3"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="recording-controls">
+                            <button id="recordButton" class="btn-record">
+                                <i class="fas fa-microphone"></i>
+                            </button>
+                            <p id="recordingIndicator" class="recording-indicator">جاري التسجيل... (Recording...)</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="loadingIndicator" class="loading-spinner">
+                    <div class="spinner-border text-success" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">جاري معالجة الصوت وتقييم النطق... (Processing audio and assessing pronunciation...)</p>
+                </div>
+                
+                <div id="resultCard" class="card result-card">
+                    <div class="card-header text-center">
+                        <h3>نتائج التقييم</h3>
+                        <h4>Assessment Results</h4>
+                    </div>
+                    <div class="card-body assessment-result">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h5>النص المنطوق (Transcribed):</h5>
+                                <p id="transcribedText" class="arabic-text"></p>
+                            </div>
+                            <div class="col-md-6">
+                                <h5>النص الصحيح (Correct):</h5>
+                                <p id="correctText" class="arabic-text"></p>
+                            </div>
+                        </div>
+                        
+                        <h5 class="mt-4">دقة النطق (Pronunciation Accuracy):</h5>
+                        <div class="progress accuracy-meter">
+                            <div id="accuracyBar" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                        </div>
+                        <p id="accuracyScore" class="text-center"></p>
+                        
+                        <div id="mispronunciationsSection">
+                            <h5 class="mt-4">الكلمات غير الصحيحة (Mispronounced Words):</h5>
+                            <table class="table table-bordered words-table">
+                                <thead>
+                                    <tr>
+                                        <th>النطق (Transcribed)</th>
+                                        <th>الصحيح (Correct)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="mispronunciationsTable">
+                                    <!-- Will be filled dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div id="missingWordsSection" class="mt-4" style="display: none;">
+                            <h5>الكلمات المفقودة (Missing Words):</h5>
+                            <p id="missingWords" class="arabic-text"></p>
+                        </div>
+                        
+                        <div id="additionalWordsSection" class="mt-4" style="display: none;">
+                            <h5>كلمات إضافية (Additional Words):</h5>
+                            <p id="additionalWords" class="arabic-text"></p>
+                        </div>
+                        
+                        <div class="feedback-section">
+                            <h5>التعليقات (Feedback):</h5>
+                            <p id="feedbackArabic" class="arabic-text"></p>
+                            <p id="feedbackEnglish"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // DOM elements
+            const recordButton = document.getElementById('recordButton');
+            const recordingIndicator = document.getElementById('recordingIndicator');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const resultCard = document.getElementById('resultCard');
+            const surahSelect = document.getElementById('surahSelect');
+            const surahText = document.getElementById('surahText');
+            const transcribedText = document.getElementById('transcribedText');
+            const correctText = document.getElementById('correctText');
+            const accuracyBar = document.getElementById('accuracyBar');
+            const accuracyScore = document.getElementById('accuracyScore');
+            const mispronunciationsTable = document.getElementById('mispronunciationsTable');
+            const missingWordsSection = document.getElementById('missingWordsSection');
+            const missingWords = document.getElementById('missingWords');
+            const additionalWordsSection = document.getElementById('additionalWordsSection');
+            const additionalWords = document.getElementById('additionalWords');
+            const feedbackArabic = document.getElementById('feedbackArabic');
+            const feedbackEnglish = document.getElementById('feedbackEnglish');
+            
+            // Variables for recording
+            let mediaRecorder;
+            let audioChunks = [];
+            let isRecording = false;
+            
+            // Load Quran data
+            let quranData = {};
+            let surahIndex = [];
+            
+            // Load surah index from API
+            fetch('/api/surahs')
+                .then(response => response.json())
+                .then(data => {
+                    surahIndex = data;
+                    populateSurahDropdown();
+                })
+                .catch(error => {
+                    console.error('Error loading surah index:', error);
+                    // Fallback to local loading
+                    loadQuranDataFromStatic();
+                });
+            
+            function loadQuranDataFromStatic() {
+                fetch('/static/index.json')
+                    .then(response => response.json())
+                    .then(data => {
+                        surahIndex = data;
+                        populateSurahDropdown();
+                    })
+                    .catch(error => {
+                        console.error('Error loading surah index from static file:', error);
+                        // Use hardcoded fallback
+                        useFallbackData();
+                    });
+            }
+            
+            function useFallbackData() {
+                // Minimal fallback data for Al-Fatiha
+                surahIndex = [
+                    {id: 1, name: "الفاتحة", transliteration: "Al-Fatihah", total_verses: 7}
+                ];
+                
+                quranData = {
+                    "1": {
+                        "name": "الفاتحة",
+                        "verses": [
+                            {"number": 1, "text": "بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ"},
+                            {"number": 2, "text": "الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ"},
+                            {"number": 3, "text": "الرَّحْمَٰنِ الرَّحِيمِ"},
+                            {"number": 4, "text": "مَالِكِ يَوْمِ الدِّينِ"},
+                            {"number": 5, "text": "إِيَّاكَ نَعْبُدُ وَإِيَّاكَ نَسْتَعِينُ"},
+                            {"number": 6, "text": "اهْدِنَا الصِّرَاطَ الْمُسْتَقِيمَ"},
+                            {"number": 7, "text": "صِرَاطَ الَّذِينَ أَنْعَمْتَ عَلَيْهِمْ غَيْرِ الْمَغْضُوبِ عَلَيْهِمْ وَلَا الضَّالِّينَ"}
+                        ]
+                    }
+                };
+                
+                populateSurahDropdown();
+            }
+            
+            function populateSurahDropdown() {
+                // Clear existing options
+                surahSelect.innerHTML = '';
+                
+                // Add options for each surah
+                surahIndex.forEach(surah => {
+                    const option = document.createElement('option');
+                    option.value = surah.id;
+                    option.textContent = `${surah.id} - ${surah.name} (${surah.transliteration})`;
+                    surahSelect.appendChild(option);
+                });
+                
+                // Load quran data for the selected surah
+                loadSelectedSurah();
+            }
+            
+            function loadSelectedSurah() {
+                const surahId = surahSelect.value;
+                
+                // Show loading indicator while fetching surah data
+                surahText.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-success" role="status"></div><p class="mt-3">جاري تحميل السورة... (Loading surah...)</p></div>';
+                
+                // Check if we already have this surah's data
+                if (quranData[surahId]) {
+                    displaySurahText();
+                } else {
+                    // Try to fetch from the specific surah URL from index.json first
+                    const selectedSurahInfo = surahIndex.find(s => s.id == surahId);
+                    
+                    if (selectedSurahInfo && selectedSurahInfo.link) {
+                        // Fetch from the CDN link in index.json
+                        fetch(selectedSurahInfo.link)
+                            .then(response => response.json())
+                            .then(data => {
+                                // Format the data to match our expected structure
+                                const formattedData = {
+                                    name: selectedSurahInfo.name,
+                                    verses: data.verses || []
+                                };
+                                
+                                // Cache the data
+                                quranData[surahId] = formattedData;
+                                displaySurahText();
+                            })
+                            .catch(error => {
+                                console.error(`Error loading surah ${surahId} from link:`, error);
+                                // Fall back to local quran_data.json
+                                fetchFromLocalQuranData();
+                            });
+                    } else {
+                        // Fall back to local quran_data.json
+                        fetchFromLocalQuranData();
+                    }
+                }
+                
+                function fetchFromLocalQuranData() {
+                    fetch('/static/quran_data.json')
+                        .then(response => response.json())
+                        .then(data => {
+                            if (!data[surahId]) {
+                                throw new Error(`Surah ${surahId} not found in quran_data.json`);
+                            }
+                            quranData = {...quranData, ...data};
+                            displaySurahText();
+                        })
+                        .catch(error => {
+                            console.error(`Error loading data for surah ${surahId}:`, error);
+                            surahText.innerHTML = `<div class="alert alert-danger">Failed to load Surah ${surahId}. Please try another surah or reload the page.</div>`;
+                        });
+                }
+            }
+            
+            // Update display when surah changes
+            surahSelect.addEventListener('change', loadSelectedSurah);
+            
+            function displaySurahText() {
+                const surahId = surahSelect.value;
+                const selectedSurah = quranData[surahId];
+                
+                if (!selectedSurah || !selectedSurah.verses) {
+                    console.error(`No verses found for surah ${surahId}`);
+                    surahText.innerHTML = `<div class="alert alert-danger">No verses found for surah ${surahId}.</div>`;
+                    return;
+                }
+                
+                // Clear previous surah text and show loading for large surahs
+                surahText.innerHTML = '';
+                
+                // Add bismillah header for most surahs (except 9)
+                if (surahId != 9) {
+                    const bismillah = document.createElement('div');
+                    bismillah.className = 'bismillah text-center mb-4 mt-2';
+                    bismillah.textContent = 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ';
+                    bismillah.style.fontSize = '2rem';
+                    bismillah.style.color = '#075e54';
+                    surahText.appendChild(bismillah);
+                }
+                
+                // For large surahs, use fragment and batch rendering for better performance
+                const fragment = document.createDocumentFragment();
+                const totalVerses = selectedSurah.verses.length;
+                const isBigSurah = totalVerses > 50;
+                
+                console.log(`Rendering surah ${surahId} with ${totalVerses} verses`);
+                
+                // Function to render batch of verses
+                function renderVerses(startIdx, endIdx) {
+                    for (let i = startIdx; i < endIdx && i < totalVerses; i++) {
+                        const verse = selectedSurah.verses[i];
+                        
+                        const verseDiv = document.createElement('div');
+                        verseDiv.className = 'verse mb-4';
+                        verseDiv.style.clear = 'both';
+                        
+                        const verseNumber = document.createElement('span');
+                        verseNumber.className = 'verse-number';
+                        verseNumber.textContent = verse.number || (i + 1);
+                        
+                        const verseText = document.createElement('span');
+                        verseText.className = 'verse-text';
+                        verseText.textContent = verse.text;
+                        
+                        verseDiv.appendChild(verseNumber);
+                        verseDiv.appendChild(verseText);
+                        fragment.appendChild(verseDiv);
+                    }
+                }
+                
+                if (isBigSurah) {
+                    // For big surahs, first render a batch and then use setTimeout for the rest
+                    renderVerses(0, 30);
+                    surahText.appendChild(fragment.cloneNode(true));
+                    
+                    // Scroll to top
+                    surahText.scrollTop = 0;
+                    
+                    // Render the rest in batches
+                    setTimeout(() => {
+                        const fullFragment = document.createDocumentFragment();
+                        // Re-render the first batch (already displayed) to maintain order
+                        renderVerses(0, totalVerses);
+                        surahText.innerHTML = '';
+                        
+                        // Re-add bismillah
+                        if (surahId != 9) {
+                            const bismillah = document.createElement('div');
+                            bismillah.className = 'bismillah text-center mb-4 mt-2';
+                            bismillah.textContent = 'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ';
+                            bismillah.style.fontSize = '2rem';
+                            bismillah.style.color = '#075e54';
+                            surahText.appendChild(bismillah);
+                        }
+                        
+                        surahText.appendChild(fragment);
+                        surahText.scrollTop = 0; // Scroll back to top
+                    }, 100);
+                } else {
+                    // For smaller surahs, render all at once
+                    renderVerses(0, totalVerses);
+                    surahText.appendChild(fragment);
+                }
+                
+                // Show verse count information
+                const verseInfo = document.createElement('div');
+                verseInfo.className = 'text-center mt-3 mb-2';
+                verseInfo.style.fontSize = '0.9rem';
+                verseInfo.style.color = '#6c757d';
+                verseInfo.textContent = `Total verses: ${totalVerses}`;
+                surahText.appendChild(verseInfo);
+            }
+            
+            // Handle recording
+            recordButton.addEventListener('click', async () => {
+                if (!isRecording) {
+                    startRecording();
+                } else {
+                    stopRecording();
+                }
+            });
+            
+            async function startRecording() {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    
+                    mediaRecorder = new MediaRecorder(stream);
+                    audioChunks = [];
+                    
+                    mediaRecorder.ondataavailable = (event) => {
+                        audioChunks.push(event.data);
+                    };
+                    
+                    mediaRecorder.onstop = sendAudioToServer;
+                    
+                    mediaRecorder.start();
+                    isRecording = true;
+                    
+                    // Update UI
+                    recordButton.innerHTML = '<i class="fas fa-stop"></i>';
+                    recordButton.classList.add('btn-danger');
+                    recordingIndicator.style.display = 'block';
+                    
+                    // Hide results if visible
+                    resultCard.style.display = 'none';
+                } catch (error) {
+                    console.error('Error accessing microphone:', error);
+                    alert('Could not access the microphone. Please ensure you have given permission.');
+                }
+            }
+            
+            function stopRecording() {
+                if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                    mediaRecorder.stop();
+                    isRecording = false;
+                    
+                    // Update UI
+                    recordButton.innerHTML = '<i class="fas fa-microphone"></i>';
+                    recordButton.classList.remove('btn-danger');
+                    recordingIndicator.style.display = 'none';
+                    loadingIndicator.style.display = 'block'; // Show loading indicator
+                }
+            }
+            
+            async function sendAudioToServer() {
+                try {
+                    // Get the complete surah text to send for comparison
+                    const surahId = surahSelect.value;
+                    const selectedSurah = quranData[surahId];
+                    if (!selectedSurah || !selectedSurah.verses) {
+                        throw new Error("Surah data not available");
+                    }
+                    
+                    // Create audio blob and form data
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    const formData = new FormData();
+                    formData.append('audio_file', audioBlob, 'recording.webm');
+                    formData.append('surah_number', surahId);
+                    
+                    // Send to server
+                    const response = await fetch('/api/assess', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    // Hide loading indicator
+                    loadingIndicator.style.display = 'none';
+                    
+                    if (response.ok) {
+                        const result = await response.json();
+                        displayResults(result);
+                    } else {
+                        const error = await response.json();
+                        throw new Error(error.error || 'Server error');
+                    }
+                } catch (error) {
+                    console.error('Error processing audio:', error);
+                    
+                    // Hide loading indicator and show error
+                    loadingIndicator.style.display = 'none';
+                    resultCard.style.display = 'block';
+                    transcribedText.textContent = 'حدث خطأ في معالجة الصوت. (Error processing audio.)';
+                    accuracyScore.textContent = 'Error';
+                    accuracyBar.style.width = '0%';
+                    accuracyBar.className = 'progress-bar bg-danger';
+                }
+            }
+            
+            function displayResults(result) {
+                resultCard.style.display = 'block';
+                
+                // Display transcribed and correct text
+                transcribedText.textContent = result.transcribed_text;
+                correctText.textContent = result.correct_text;
+                
+                // Update accuracy score
+                const score = result.assessment.accuracy_score || 0;
+                accuracyBar.style.width = `${score}%`;
+                accuracyScore.textContent = `${score}%`;
+                
+                // Set bar color based on score
+                if (score >= 80) {
+                    accuracyBar.className = 'progress-bar bg-success';
+                } else if (score >= 60) {
+                    accuracyBar.className = 'progress-bar bg-warning';
+                } else {
+                    accuracyBar.className = 'progress-bar bg-danger';
+                }
+                
+                // Display mispronounced words
+                mispronunciationsTable.innerHTML = '';
+                const mispronounced = result.assessment.mispronounced_words || [];
+                if (mispronounced.length === 0) {
+                    mispronunciationsTable.innerHTML = '<tr><td colspan="2" class="text-center">لا توجد أخطاء نطقية! (No pronunciation errors!)</td></tr>';
+                } else {
+                    mispronounced.forEach(word => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td class="arabic-text">${word.transcribed}</td>
+                            <td class="arabic-text">${word.correct}</td>
+                        `;
+                        mispronunciationsTable.appendChild(row);
+                    });
+                }
+                
+                // Display missing words
+                const missing = result.assessment.missing_words || [];
+                if (missing.length > 0) {
+                    missingWords.textContent = missing.join(' ، ');
+                    missingWordsSection.style.display = 'block';
+                } else {
+                    missingWordsSection.style.display = 'none';
+                }
+                
+                // Display additional words
+                const additional = result.assessment.additional_words || [];
+                if (additional.length > 0) {
+                    additionalWords.textContent = additional.join(' ، ');
+                    additionalWordsSection.style.display = 'block';
+                } else {
+                    additionalWordsSection.style.display = 'none';
+                }
+                
+                // Display feedback
+                feedbackArabic.textContent = result.assessment.feedback?.arabic || '';
+                feedbackEnglish.textContent = result.assessment.feedback?.english || '';
+            }
+        });
+    </script>
+</body>
+</html>
