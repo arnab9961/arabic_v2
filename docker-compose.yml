@@ -7,14 +7,29 @@ services:
       dockerfile: Dockerfile
     ports:
       - "10.0.10.182:8100:8100"
+      - "10.0.10.182:9443:8443"  # Changed from 8443 to 9443 to avoid conflict
     volumes:
       - ./app:/app/app
       - ./data:/app/data
       - ./models:/app/models
+      - ./certs:/app/certs  # Add this line for certificates
     env_file:
       - .env
     restart: unless-stopped
     environment:
       - PYTHONUNBUFFERED=1
-    command: >
-      bash -c "uvicorn app.main:app --host 0.0.0.0 --port 8100 --reload"
+      - SSL_KEYFILE=/app/certs/privkey.pem
+      - SSL_CERTFILE=/app/certs/fullchain.pem
+    # Let the Dockerfile's CMD handle SSL logic
+    
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "10.0.10.182:8301:83"  # Changed from 8443 to 9443
+      - "10.0.10.182:8081:80"   # Using 8081 for HTTP
+    volumes:
+      - ./nginx/conf:/etc/nginx/conf.d
+      - ./nginx/certs:/etc/nginx/certs:ro
+    depends_on:
+      - app
+    restart: unless-stopped
