@@ -25,19 +25,37 @@ if __name__ == "__main__":
     ssl_keyfile = os.environ.get("SSL_KEYFILE", "/app/certs/privkey.pem")
     ssl_certfile = os.environ.get("SSL_CERTFILE", "/app/certs/fullchain.pem")
     
-    ssl_enabled = os.path.exists(ssl_keyfile) and os.path.exists(ssl_certfile)
+    # Check if SSL certificates exist and have proper content
+    ssl_enabled = False
+    try:
+        if os.path.exists(ssl_keyfile) and os.path.exists(ssl_certfile):
+            # Verify certificate files are not empty
+            if os.path.getsize(ssl_keyfile) > 0 and os.path.getsize(ssl_certfile) > 0:
+                ssl_enabled = True
+            else:
+                print("SSL certificates exist but are empty")
+        else:
+            print(f"SSL certificates not found: {ssl_keyfile} or {ssl_certfile}")
+    except Exception as e:
+        print(f"Error checking SSL certificates: {str(e)}")
+    
+    # Configure the port based on environment variable or default
+    port = int(os.environ.get("PORT", 8100))
+    ssl_port = int(os.environ.get("SSL_PORT", 8443))
     
     if ssl_enabled:
         # Run with SSL
+        print(f"Running with HTTPS on port {ssl_port}")
         uvicorn.run(
             "app.main:app", 
             host="0.0.0.0", 
-            port=8100, 
+            port=ssl_port, 
             reload=True,
             ssl_keyfile=ssl_keyfile,
             ssl_certfile=ssl_certfile
         )
     else:
         # Run without SSL
-        print("SSL certificates not found, running without HTTPS")
-        uvicorn.run("app.main:app", host="0.0.0.0", port=8100, reload=True)
+        print("SSL certificates not found or invalid, running without HTTPS")
+        print("Warning: Microphone access requires HTTPS in modern browsers")
+        uvicorn.run("app.main:app", host="0.0.0.0", port=port, reload=True)

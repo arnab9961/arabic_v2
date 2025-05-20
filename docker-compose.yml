@@ -6,13 +6,13 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "10.0.10.182:8100:8100"
-      - "10.0.10.182:9443:8443"  # Changed from 8443 to 9443 to avoid conflict
+      - "10.0.10.182:8100:8100"  # HTTP port
+      - "10.0.10.182:8443:8443"  # HTTPS port
     volumes:
       - ./app:/app/app
       - ./data:/app/data
       - ./models:/app/models
-      - ./certs:/app/certs  # Add this line for certificates
+      # No need to mount ./certs since the certificates are already in ./app/certs
     env_file:
       - .env
     restart: unless-stopped
@@ -20,7 +20,8 @@ services:
       - PYTHONUNBUFFERED=1
       - SSL_KEYFILE=/app/certs/privkey.pem
       - SSL_CERTFILE=/app/certs/fullchain.pem
-    # Let the Dockerfile's CMD handle SSL logic
+      - PORT=8100
+      - SSL_PORT=8443
     
   nginx:
     image: nginx:alpine

@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     LLAMA_MODEL: str = os.getenv("LLAMA_MODEL", "llama3-70b-8192")
     
     # API configuration
-    MAX_TOKENS: int = int(os.getenv("MAX_TOKENS", "1024"))
+    MAX_TOKENS: int = int(os.getenv("MAX_TOKENS", "5000"))
     TEMPERATURE: float = float(os.getenv("TEMPERATURE", "0.1"))
     
     # Audio processing

@@ -526,6 +526,17 @@
             
             async function startRecording() {
                 try {
+                    // Check if we're in a secure context (HTTPS)
+                    if (window.isSecureContext === false) {
+                        throw new Error('Microphone access requires a secure connection (HTTPS). Please access this application via HTTPS.');
+                    }
+                    
+                    // Check if mediaDevices API is available
+                    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                        throw new Error('Audio recording is not supported in this browser.');
+                    }
+                    
+                    // Try to access the microphone
                     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                     
                     mediaRecorder = new MediaRecorder(stream);
@@ -549,8 +560,52 @@
                     resultCard.style.display = 'none';
                 } catch (error) {
                     console.error('Error accessing microphone:', error);
-                    alert('Could not access the microphone. Please ensure you have given permission.');
+                    
+                    if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+                        showErrorModal('Microphone Permission Denied', 'You need to allow microphone access to use this feature. Please click the camera/microphone icon in your browser\'s address bar and select "Allow".');
+                    } else if (error.message.includes('HTTPS')) {
+                        showErrorModal('Secure Connection Required', 'This feature requires a secure connection (HTTPS). Please access this application using HTTPS instead of HTTP.');
+                    } else {
+                        showErrorModal('Microphone Access Error', 'Could not access the microphone. ' + error.message);
+                    }
                 }
+            }
+            
+            function showErrorModal(title, message) {
+                // Create a modal if it doesn't exist
+                let modalContainer = document.getElementById('errorModalContainer');
+                if (!modalContainer) {
+                    modalContainer = document.createElement('div');
+                    modalContainer.id = 'errorModalContainer';
+                    document.body.appendChild(modalContainer);
+                }
+                
+                // Add the modal HTML
+                modalContainer.innerHTML = `
+                <div class="modal fade" id="errorModal" tabindex="-1" aria-labelledby="errorModalLabel" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header bg-danger text-white">
+                                <h5 class="modal-title" id="errorModalLabel">${title}</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p>${message}</p>
+                                <div class="text-center mt-3">
+                                    <img src="https://cdn.glitch.global/db00b4f4-9288-4a0e-8476-45237d1e591c/microphone-permission.png" 
+                                         alt="Microphone permission dialog" class="img-fluid" style="max-width: 300px;">
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+                
+                // Show the modal
+                const modal = new bootstrap.Modal(document.getElementById('errorModal'));
+                modal.show();
             }
             
             function stopRecording() {
